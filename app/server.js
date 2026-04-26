@@ -1,18 +1,25 @@
-const express = require('express');
-const { WebSocketServer, WebSocket } = require('ws');
-const pty = require('@homebridge/node-pty-prebuilt-multiarch');
 const http = require('http');
+const fs = require('fs');
 const path = require('path');
+const { WebSocketServer } = require('ws');
+const pty = require('@homebridge/node-pty-prebuilt-multiarch');
 
 const PORT = process.env.PORT || 3000;
 const BUFFER_MAX = 500 * 1024;
+const PUBLIC = path.join(__dirname, 'public');
 
-const app = express();
-const server = http.createServer(app);
+const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };
+
+const server = http.createServer((req, res) => {
+  const file = req.url === '/' ? '/index.html' : req.url;
+  fs.readFile(path.join(PUBLIC, file), (err, data) => {
+    if (err) { res.writeHead(404); res.end(); return; }
+    res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'text/plain' });
+    res.end(data);
+  });
+});
+
 const wss = new WebSocketServer({ server });
-
-app.use(express.static(path.join(__dirname, 'public')));
-
 const clients = new Set();
 let outputBuffer = '';
 
@@ -31,11 +38,9 @@ console.log(`Shell PID: ${shell.pid}`);
 
 shell.onData((data) => {
   outputBuffer += data;
-  if (outputBuffer.length > BUFFER_MAX) {
-    outputBuffer = outputBuffer.slice(-BUFFER_MAX);
-  }
+  if (outputBuffer.length > BUFFER_MAX) outputBuffer = outputBuffer.slice(-BUFFER_MAX);
   for (const ws of clients) {
-    if (ws.readyState === WebSocket.OPEN) ws.send(data);
+    if (ws.readyState === 1) ws.send(data);
   }
 });
 
@@ -47,18 +52,14 @@ shell.onExit(({ exitCode }) => {
 wss.on('connection', (ws) => {
   clients.add(ws);
   console.log(`[ws] +client  (${clients.size} connected, buffer=${outputBuffer.length}b)`);
-
   ws.send('\x1b[!p\x1b[?25h\x1b[m');
   if (outputBuffer) ws.send(outputBuffer);
 
   ws.on('message', (raw) => {
     try {
       const { type, data, cols, rows } = JSON.parse(raw);
-      if (type === 'input') {
-        shell.write(data);
-      } else if (type === 'resize') {
-        shell.resize(Math.max(1, cols), Math.max(1, rows));
-      }
+      if (type === 'input') shell.write(data);
+      else if (type === 'resize') shell.resize(Math.max(1, cols), Math.max(1, rows));
     } catch {}
   });
 
@@ -70,6 +71,4 @@ wss.on('connection', (ws) => {
   ws.on('error', () => {});
 });
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Web terminal -> http://localhost:${PORT}`);
-});
+server.listen(PORT, '0.0.0.0', () => console.log(`Web terminal -> http://localhost:${PORT}`));
