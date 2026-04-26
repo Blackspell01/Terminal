@@ -1,5 +1,5 @@
 const express = require('express');
-const { WebSocketServer } = require('ws');
+const { WebSocketServer, WebSocket } = require('ws');
 const pty = require('@homebridge/node-pty-prebuilt-multiarch');
 const http = require('http');
 const path = require('path');
@@ -35,7 +35,7 @@ shell.onData((data) => {
     outputBuffer = outputBuffer.slice(-BUFFER_MAX);
   }
   for (const ws of clients) {
-    if (ws.readyState === ws.OPEN) ws.send(data);
+    if (ws.readyState === WebSocket.OPEN) ws.send(data);
   }
 });
 
@@ -67,7 +67,7 @@ wss.on('connection', (ws) => {
     console.log(`[ws] -client  (${clients.size} connected)`);
   };
   ws.on('close', drop);
-  ws.on('error', drop);
+  ws.on('error', () => {});
 });
 
 server.listen(PORT, '0.0.0.0', () => {

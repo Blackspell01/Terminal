@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -37,15 +37,21 @@
     term.open(document.getElementById('terminal-container'));
     fitAddon.fit();
 
+    const decoder = new TextDecoder();
     let ws, reconnectDelay = 500;
 
+    function send(msg) {
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+    }
+
     function connect() {
-      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      ws = new WebSocket(proto + '//' + location.host + location.pathname);
+      const url = new URL(location.href);
+      url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(url);
       ws.binaryType = 'arraybuffer';
       ws.onopen = () => { reconnectDelay = 500; sendResize(); term.focus(); };
       ws.onmessage = (e) => {
-        term.write(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data));
+        term.write(typeof e.data === 'string' ? e.data : decoder.decode(e.data));
       };
       ws.onclose = () => {
         term.write('\r\n\x1b[33m[reconnecting in ' + (reconnectDelay/1000).toFixed(1) + 's...]\x1b[0m\r\n');
@@ -55,14 +61,10 @@
     }
 
     function sendResize() {
-      if (ws && ws.readyState === WebSocket.OPEN)
-        ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
+      send({ type: 'resize', cols: term.cols, rows: term.rows });
     }
 
-    term.onData((data) => {
-      if (ws && ws.readyState === WebSocket.OPEN)
-        ws.send(JSON.stringify({ type: 'input', data }));
-    });
+    term.onData((data) => { send({ type: 'input', data }); });
 
     term.attachCustomKeyEventHandler((ev) => {
       if (ev.type !== 'keydown') return true;
@@ -74,9 +76,7 @@
         navigator.clipboard.writeText(term.getSelection() || '').catch(()=>{}); return false;
       }
       if (ev.ctrlKey && ev.code === 'KeyV') {
-        navigator.clipboard.readText().then((t) => {
-          if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'input', data: t }));
-        }).catch(()=>{}); return false;
+        navigator.clipboard.readText().then((t) => send({ type: 'input', data: t })).catch(()=>{}); return false;
       }
       return true;
     });
