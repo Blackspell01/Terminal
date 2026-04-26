@@ -7,7 +7,6 @@ const pty = require('@homebridge/node-pty-prebuilt-multiarch');
 const PORT = process.env.PORT || 3000;
 const BUFFER_MAX = 500 * 1024;
 const PUBLIC = path.join(__dirname, 'public');
-
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };
 
 const server = http.createServer((req, res) => {
@@ -23,14 +22,8 @@ const wss = new WebSocketServer({ server });
 const clients = new Set();
 let outputBuffer = '';
 
-const shell = pty.spawn('nsenter', [
-  '-t', '1', '-m', '-u', '-i', '-n', '-p', '--',
-  'bash', '-l',
-], {
-  name: 'xterm-256color',
-  cols: 80,
-  rows: 24,
-  cwd: '/',
+const shell = pty.spawn('nsenter', ['-t', '1', '-m', '-u', '-i', '-n', '-p', '--', 'bash', '-l'], {
+  name: 'xterm-256color', cols: 80, rows: 24, cwd: '/',
   env: { ...process.env, TERM: 'xterm-256color', COLORTERM: 'truecolor' },
 });
 
@@ -39,35 +32,23 @@ console.log(`Shell PID: ${shell.pid}`);
 shell.onData((data) => {
   outputBuffer += data;
   if (outputBuffer.length > BUFFER_MAX) outputBuffer = outputBuffer.slice(-BUFFER_MAX);
-  for (const ws of clients) {
-    if (ws.readyState === 1) ws.send(data);
-  }
+  for (const ws of clients) if (ws.readyState === 1) ws.send(data);
 });
 
-shell.onExit(({ exitCode }) => {
-  console.log(`Shell exited (code ${exitCode})`);
-  process.exit(exitCode ?? 0);
-});
+shell.onExit(({ exitCode }) => { console.log(`Shell exited (code ${exitCode})`); process.exit(exitCode ?? 0); });
 
 wss.on('connection', (ws) => {
   clients.add(ws);
-  console.log(`[ws] +client  (${clients.size} connected, buffer=${outputBuffer.length}b)`);
   ws.send('\x1b[!p\x1b[?25h\x1b[m');
   if (outputBuffer) ws.send(outputBuffer);
 
   ws.on('message', (raw) => {
-    try {
-      const { type, data, cols, rows } = JSON.parse(raw);
-      if (type === 'input') shell.write(data);
-      else if (type === 'resize') shell.resize(Math.max(1, cols), Math.max(1, rows));
-    } catch {}
+    const buf = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
+    if (buf[0] === 0x01 && buf.length === 5) shell.resize(buf.readUInt16LE(1), buf.readUInt16LE(3));
+    else shell.write(buf.toString());
   });
 
-  const drop = () => {
-    clients.delete(ws);
-    console.log(`[ws] -client  (${clients.size} connected)`);
-  };
-  ws.on('close', drop);
+  ws.on('close', () => clients.delete(ws));
   ws.on('error', () => {});
 });
 
