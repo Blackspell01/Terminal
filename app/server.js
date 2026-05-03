@@ -7,7 +7,7 @@ const pty = require('@homebridge/node-pty-prebuilt-multiarch');
 const PUBLIC = path.join(__dirname, 'public');
 const shell = pty.spawn('nsenter', ['-t', '1', '-m', '-u', '-i', '-n', '-p', '--', 'bash', '-l'], {
   name: 'xterm-256color', cols: 80, rows: 24, cwd: '/',
-  env: { ...process.env, TERM: 'xterm-256color', COLORTERM: 'truecolor' },
+  env: { ...process.env, TERM: 'xterm-256color', COLORTERM: 'truecolor', LANG: 'de_DE.UTF-8', LC_ALL: 'de_DE.UTF-8' },
 });
 
 let outputBuffer = '';
