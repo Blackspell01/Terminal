@@ -1,12 +1,21 @@
 services:
   terminal:
+    image: terminal:1.0
     build: .
     container_name: Terminal
-    ports:
-      - 87:3000
+#    ports:
+#      - 3000:3000
     volumes:
       - ./app/server.js:/app/server.js:ro
       - ./app/public:/app/public:ro
+      - ./app/omz:/app/omz
+    environment:
+      - OMZ_DIR=${PWD}/app/omz
+      - HOME_DIR=/mnt/SSD/docker
     pid: "host"
     privileged: true
     restart: always
+networks:
+  default:
+    name: homeassistant_default
+    external: true
