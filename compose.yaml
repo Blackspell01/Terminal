@@ -10,7 +10,6 @@ services:
       - ./app/public:/app/public:ro
       - ./app/omz:/app/omz
     environment:
-      - OMZ_DIR=${PWD}/app/omz
       - HOME_DIR=/mnt/SSD/docker
     pid: "host"
     privileged: true
