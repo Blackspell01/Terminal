@@ -16,5 +16,5 @@ services:
     restart: always
 networks:
   default:
-    name: homeassistant_default
+    name: nginx_default
     external: true
