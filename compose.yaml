@@ -16,5 +16,5 @@ services:
     restart: always
 networks:
   default:
-    name: nginx_default
+    name: nginx-pm_default
     external: true
