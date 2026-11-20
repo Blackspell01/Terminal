@@ -6,9 +6,10 @@ services:
 #    ports:
 #      - 3000:3000
     volumes:
-      - ./app/server.js:/app/server.js:ro
       - ./app/public:/app/public:ro
       - ./app/omz:/app/omz
+      - ./app/server.js:/app/server.js:ro
+      - ./app/start.sh:/app/start.sh:ro
     environment:
       - HOME_DIR=/mnt/SSD/docker
     pid: "host"

@@ -1,4 +1,4 @@
-const term = new Terminal({ cursorBlink: true });
+const term = new Terminal({ cursorBlink: true, macOptionClickForcesSelection: true });
 const fitAddon = new FitAddon.FitAddon();
 term.loadAddon(fitAddon);
 term.open(document.getElementById('terminal-container'));
