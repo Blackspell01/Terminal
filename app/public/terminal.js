@@ -1,3 +1,5 @@
+import ReconnectingWebSocket from 'https://cdn.jsdelivr.net/npm/partysocket@1.3.0/ws/+esm';
+
 const term = new Terminal({ cursorBlink: true, macOptionClickForcesSelection: true });
 const fitAddon = new FitAddon.FitAddon();
 term.loadAddon(fitAddon);
@@ -6,7 +8,8 @@ fitAddon.fit();
 
 const url = new URL(location.href);
 url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-const ws = new WebSocket(url);
+// Verbindet bei Abbruch automatisch neu
+const ws = new ReconnectingWebSocket(url.href);
 ws.binaryType = 'arraybuffer';
 
 function sendResize() {
@@ -16,10 +19,13 @@ function sendResize() {
   ws.send(v.buffer);
 }
 
-ws.onopen = () => {
+// Bei jeder (Neu-)Verbindung schickt der Server den aktuellen Bildschirm.
+// AttachAddon beendet sich bei Verbindungsabbruch selbst, daher pro Verbindung neu einhängen.
+ws.addEventListener('open', () => {
+  term.reset();
   term.loadAddon(new AttachAddon.AttachAddon(ws));
   sendResize();
-};
+});
 
 new ResizeObserver(() => { fitAddon.fit(); sendResize(); })
   .observe(document.getElementById('terminal-container'));
