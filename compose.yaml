@@ -11,11 +11,11 @@ services:
       - ./app/server.js:/app/server.js:ro
       - ./app/start.sh:/app/start.sh:ro
     environment:
-      - HOME_DIR=/mnt/SSD/docker
+      - HOME_DIR=${HOME_DIR}
     pid: "host"
     privileged: true
     restart: always
 networks:
   default:
-    name: nginx-pm_default
+    name: ${NETWORK}
     external: true
